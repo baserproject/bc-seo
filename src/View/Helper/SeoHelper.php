@@ -13,10 +13,8 @@ namespace BcSeo\View\Helper;
 
 use Cake\View\Helper;
 use Cake\Core\Configure;
-use Cake\Event\EventInterface;
 use Cake\ORM\TableRegistry;
 use BaserCore\Routing\Route\BcContentsRoute;
-use BaserCore\Utility\BcUtil;
 
 /**
  * Class SeoHelper
@@ -41,26 +39,7 @@ class SeoHelper extends Helper
 
         $this->fields = Configure::read('BcSeo.fields');
         $this->seoMetasTable = TableRegistry::getTableLocator()->get('BcSeo.SeoMetas');
-    }
-
-    /**
-     * beforeRender
-     *
-     * カノニカル URL の設定値をコアへ引き渡す。
-     *
-     * 設定があれば BcBaserHelper::setCanonicalUrl() がその値を、
-     * 無ければ従来どおり自身の URL を出力する。
-     * 同メソッドは View の afterRender で実行されるため、beforeRender で渡す。
-     */
-    public function beforeRender(EventInterface $event, $viewFile): void
-    {
-        if (BcUtil::isAdminSystem()) {
-            return;
-        }
-        $meta = $this->getMeta(['canonical_url']);
-        if (!empty($meta['canonical_url']['value'])) {
-            $this->getView()->set('canonicalUrl', $meta['canonical_url']['value']);
-        }
+        $this->getView()->set('canonicalUrl', false);
     }
 
     /**
@@ -68,11 +47,7 @@ class SeoHelper extends Helper
      */
     public function meta(array $fields = [])
     {
-        // カノニカル URL は BcBaserHelper::setCanonicalUrl() が出力するため、
-        // ここで出力すると重複する
-        $metaData = $this->getMeta($fields);
-        unset($metaData['canonical_url']);
-        $this->getView()->set('metaData', $metaData);
+        $this->getView()->set('metaData', $this->getMeta($fields));
         $this->BcBaser->element('BcSeo.seo_meta');
     }
 
@@ -121,13 +96,10 @@ class SeoHelper extends Helper
         if ($controller === 'Blog' && $action === 'archives') {
             if ($this->Blog->isCategory()) {
                 $blogCategory = $this->getView()->get('blogCategory');
-                if ($blogCategory) {
-                    $metaValueLayers[] = $this->getMetaValues('BlogCategories', 0, $blogCategory->id);
-                }
+                $metaValueLayers[] = $this->getMetaValues('BlogCategories', 0, $blogCategory->id);
             } elseif ($this->Blog->isSingle()) {
-                // 記事が見つからない場合は null になる
                 $blogPost = $this->getView()->get('post');
-                if ($blogPost && $blogPost->id) {
+                if ($blogPost->id) {
                     $metaValueLayers[] = $this->getMetaValues('BlogPosts', 0, $blogPost->id);
                     $eyecatch = $this->Blog->getEyecatch($blogPost, ['output' => 'url']);
                     if ($eyecatch) {
@@ -140,7 +112,7 @@ class SeoHelper extends Helper
         // カスタムコンテンツ
         if ($controller === 'CustomContent' && $action === 'view') {
             $customEntry = $this->getView()->get('customEntry');
-            if ($customEntry && $customEntry->id) {
+            if ($customEntry->id) {
                 $metaValueLayers[] = $this->getMetaValues('CustomEntries',
                     $customEntry->custom_table_id, $customEntry->id);
             }
